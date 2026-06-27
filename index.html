@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Housie Manager</title>
+<title>Housie Manager v1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -439,7 +439,7 @@ label{color:var(--txt2);font-size:11px;font-weight:700;letter-spacing:.5px;text-
     <i class="ti ti-crown" style="font-size:32px;color:var(--orange)" aria-hidden="true"></i>
     <div class="hdr-emblem-line r"></div>
   </div>
-  <h1>Housie Manager</h1>
+  <h1>Housie Manager<sup style="font-family:var(--font-body);font-size:13px;font-weight:800;color:rgba(255,166,73,.6);letter-spacing:1px;vertical-align:super;margin-left:6px;-webkit-text-fill-color:rgba(255,166,73,.6);background:none;text-transform:lowercase">v1</sup></h1>
   <p class="hdr-sub">Multi-Game Tracker &nbsp;·&nbsp; Settlement &nbsp;·&nbsp; Leaderboard</p>
   <div class="hdr-dots"><span></span><span></span><span></span></div>
 </div>
@@ -546,10 +546,36 @@ label{color:var(--txt2);font-size:11px;font-weight:700;letter-spacing:.5px;text-
     <div class="sh-icon"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i></div>
     <h2>Prize Category Setup</h2>
   </div>
-  <p style="font-size:12px;color:var(--txt3);margin-bottom:12px;font-weight:600;letter-spacing:.2px">Set how many winners per category. Prize amounts are entered manually per row below.</p>
-  <div id="catCfg"></div>
-  <div style="margin-top:12px">
-    <button class="bg" onclick="applyCategories()"><i class="ti ti-check" aria-hidden="true"></i> Apply Category Setup</button>
+  <p style="font-size:12px;color:var(--txt3);margin-bottom:14px;font-weight:600;letter-spacing:.2px">Enter the <strong style="color:var(--orange)">Total Prize Pool</strong> to get suggested prize splits, or enter each prize amount manually.</p>
+
+  <!-- Total Pool Input + Suggest -->
+  <div style="background:rgba(16,26,33,.7);border:1px solid rgba(255,166,73,.18);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-family:var(--font-head);font-size:10px;font-weight:700;color:rgba(255,166,73,.65);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">
+      <i class="ti ti-coins" style="margin-right:5px"></i>Auto-Split — Total Prize Pool
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <label>Total Amount (₹)</label>
+        <input type="number" id="totalPool" min="5" step="5" placeholder="e.g. 500" style="width:130px" oninput="previewSplit()">
+      </div>
+      <button class="bp" onclick="suggestSplit()"><i class="ti ti-wand" aria-hidden="true"></i> Suggest Split</button>
+      <button onclick="openManualEntry()"><i class="ti ti-edit" aria-hidden="true"></i> Manual Entry</button>
+    </div>
+    <!-- Suggestions -->
+    <div id="splitSuggestions" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Manual Entry Panel -->
+  <div id="manualEntryPanel" style="display:none;background:rgba(16,26,33,.7);border:1px solid rgba(255,166,73,.18);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-family:var(--font-head);font-size:10px;font-weight:700;color:rgba(255,166,73,.65);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">
+      <i class="ti ti-edit" style="margin-right:5px"></i>Manual Prize Entry
+    </div>
+    <div id="manualRows"></div>
+    <div style="margin-top:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+      <button class="bg" onclick="applyManualEntry()"><i class="ti ti-check" aria-hidden="true"></i> Apply Prizes</button>
+      <button onclick="closeManualEntry()"><i class="ti ti-x" aria-hidden="true"></i> Cancel</button>
+      <span id="manualTotal" style="font-size:12px;color:var(--txt3);font-weight:700"></span>
+    </div>
   </div>
 </div>
 
@@ -601,7 +627,7 @@ label{color:var(--txt2);font-size:11px;font-weight:700;letter-spacing:.5px;text-
 
 <!-- FOOTER -->
 <footer class="footer">
-  <div class="footer-logo">&#9670; Housie Manager &#9670;</div>
+  <div class="footer-logo">&#9670; Housie Manager <span style="font-size:10px;letter-spacing:1px;opacity:.6">v1</span> &#9670;</div>
   <div class="footer-divider">
     <div class="footer-divider-line"></div>
     <div class="footer-dot"></div>
@@ -622,7 +648,6 @@ const BCATS=[
   {id:'topline',name:'Top Line'},
   {id:'midline',name:'Middle Line'},
   {id:'botline',name:'Bottom Line'},
-  {id:'corners',name:'Four Corners'},
   {id:'housie',name:'Full Housie'},
 ];
 const COLS=['#FFA649','#3dd68c','#c084fc','#ff6b6b','#67c0f4','#f472b6','#fbbf24','#06b6d4'];
@@ -666,7 +691,7 @@ function load(){
     document.getElementById('gameLabel').textContent='Game '+G.gameNum;
     if(G.drawn.length){refreshGrid();refreshBig(G.drawn[G.drawn.length-1]);refreshPills();}
     if(G.players.length){document.getElementById('inpN').value=G.players.length;renderPlayers();}
-    renderCatCfg();renderTierList();
+    renderTierList();
     if(G.prizeRows.length)renderPrizeTbl();
     renderLB();
     toast('Previous session restored ✓','g');
@@ -853,33 +878,168 @@ function updPInfo(){
   document.getElementById('iPot').textContent='₹'+pot;
 }
 
-function initCats(){
-  BCATS.forEach(c=>{if(!(c.id in G.catSetup))G.catSetup[c.id]=1;});
-  renderCatCfg();
+// ── SPLIT NUMBER (Prize Suggestion Engine) ──
+function splitNumber(n){
+  const unit=(n%10===0)?10:5;
+  const solutions=[];
+  function add(priority,p1,p2,p3,p4,p5){
+    const values=[p1,p2,p3,p4,p5];
+    if(values.reduce((a,b)=>a+b,0)!==n)return;
+    if(values.some(v=>v<=0))return;
+    if(values.some(v=>v%unit!==0))return;
+    if(solutions.some(s=>JSON.stringify(s.values)===JSON.stringify(values)))return;
+    solutions.push({priority,spread:Math.max(...values)-Math.min(...values),values});
+  }
+  // Priority 1: P1>P2, P1<P5, P2=P3=P4
+  for(let x=unit;x<n;x+=unit){
+    let p2=x,p3=x,p4=x;
+    for(let p1=x+unit;p1<n;p1+=unit){
+      let p5=n-(p1+3*x);
+      if(p5>p1){add(1,p1,p2,p3,p4,p5);}
+    }
+  }
+  // Priority 2: P1=P2=P3=P4, P1<P5
+  for(let x=unit;x<n;x+=unit){
+    let p5=n-4*x;
+    if(p5>x){add(2,x,x,x,x,p5);}
+  }
+  // Priority 3: P1=P5, P1>P2, P2=P3=P4
+  for(let x=unit;x<n;x+=unit){
+    let remaining=n-3*x;
+    if(remaining%2!==0)continue;
+    let p1=remaining/2;
+    if(p1>x){add(3,p1,x,x,x,p1);}
+  }
+  // Priority 4: All Equal
+  if(n%5===0){
+    let each=n/5;
+    if(each%unit===0){add(4,each,each,each,each,each);}
+  }
+  solutions.sort((a,b)=>{
+    if(a.priority!==b.priority)return a.priority-b.priority;
+    return a.spread-b.spread;
+  });
+  return solutions.slice(0,3);
 }
-function renderCatCfg(){
-  document.getElementById('catCfg').innerHTML=BCATS.map(cat=>`
-    <div class="catrow">
-      <span style="font-size:13px;font-weight:700;color:var(--txt)">${cat.name}</span>
-      <div style="display:flex;align-items:center;gap:7px">
-        <label style="white-space:nowrap">Winners:</label>
-        <input type="number" min="0" max="10" value="${G.catSetup[cat.id]||0}" id="cc_${cat.id}" style="width:60px" onchange="G.catSetup['${cat.id}']=+this.value||0">
+
+function previewSplit(){
+  // just live-validate input
+  const v=parseInt(document.getElementById('totalPool').value)||0;
+  const sugg=document.getElementById('splitSuggestions');
+  if(sugg.style.display!=='none'&&v>0)suggestSplit();
+}
+
+function suggestSplit(){
+  const v=parseInt(document.getElementById('totalPool').value)||0;
+  if(!v||v<5){toast('Enter a valid total amount (min ₹5)','a');return;}
+  // Round to nearest 5
+  const n=Math.round(v/5)*5;
+  const sols=splitNumber(n);
+  const sugg=document.getElementById('splitSuggestions');
+  if(!sols||!sols.length){
+    sugg.innerHTML='<div style="font-size:12px;color:var(--red);font-weight:600;padding:8px 0"><i class="ti ti-alert-circle" style="margin-right:5px"></i>No valid split found for ₹'+n+'. Try a multiple of 5.</div>';
+    sugg.style.display='block';return;
+  }
+  const labels=['Fast 5','Top Line','Middle Line','Bottom Line','Full Housie'];
+  const optLabels=['Option A','Option B','Option C'];
+  sugg.innerHTML=`<div style="font-size:11px;color:var(--txt3);font-weight:700;margin-bottom:10px;letter-spacing:.5px">Suggested prize splits for ₹${n}:</div>`
+  +sols.map((s,si)=>`
+    <div style="background:rgba(255,166,73,.06);border:1px solid rgba(255,166,73,${si===0?'.45':'.18'});border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:var(--font-head);font-size:10px;font-weight:700;color:var(--orange);letter-spacing:1.5px;text-transform:uppercase">${optLabels[si]}${si===0?' <span style="font-size:9px;background:rgba(255,166,73,.2);border:1px solid rgba(255,166,73,.4);border-radius:10px;padding:1px 7px;margin-left:6px">Recommended</span>':''}</span>
+        <button class="bg sm" onclick="applySuggestion(${si})"><i class="ti ti-check" aria-hidden="true"></i> Use This</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+        ${s.values.map((v,vi)=>`
+          <div style="text-align:center;background:rgba(16,26,33,.7);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:8px 4px">
+            <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:4px;letter-spacing:.3px">${labels[vi]}</div>
+            <div style="font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--orange)">₹${v}</div>
+          </div>`).join('')}
       </div>
     </div>`).join('');
+  // Store suggestions for applySuggestion
+  window._splitSols=sols;
+  window._splitN=n;
+  sugg.style.display='block';
 }
-function applyCategories(){
-  BCATS.forEach(c=>{const el=document.getElementById('cc_'+c.id);if(el)G.catSetup[c.id]=+el.value||0;});
-  const newRows=[];
+
+function applySuggestion(idx){
+  const sols=window._splitSols;
+  if(!sols||!sols[idx])return;
+  const vals=sols[idx].values;
+  G.prizeRows=BCATS.map((cat,i)=>({
+    catId:cat.id,catName:cat.name,slot:0,label:cat.name,
+    amount:vals[i],winner:'',editing:false
+  }));
+  renderPrizeTbl();save();
+  document.getElementById('splitSuggestions').style.display='none';
+  toast('Prize split applied ✓','g');
+}
+
+function openManualEntry(){
+  const panel=document.getElementById('manualEntryPanel');
+  const rows=document.getElementById('manualRows');
+  rows.innerHTML=BCATS.map((cat,i)=>{
+    const existing=G.prizeRows.find(r=>r.catId===cat.id);
+    const val=existing?existing.amount:0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <span style="flex:1;font-size:13px;font-weight:700;color:var(--txt)">${cat.name}</span>
+      <span style="font-size:12px;color:var(--orange);font-weight:700;min-width:20px">₹</span>
+      <input type="number" id="me_${cat.id}" min="0" step="5" value="${val}" style="width:100px" oninput="updateManualTotal()">
+    </div>`;
+  }).join('');
+  updateManualTotal();
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function updateManualTotal(){
+  let tot=0;
   BCATS.forEach(cat=>{
-    const cnt=G.catSetup[cat.id]||0;
-    for(let i=0;i<cnt;i++){
-      const ex=G.prizeRows.find(r=>r.catId===cat.id&&r.slot===i);
-      newRows.push({catId:cat.id,catName:cat.name,slot:i,
-        label:cnt>1?cat.name+' #'+(i+1):cat.name,
-        amount:ex?ex.amount:0,winner:ex?ex.winner:'',editing:ex?ex.editing:true});
-    }
+    const el=document.getElementById('me_'+cat.id);
+    if(el)tot+=parseInt(el.value)||0;
   });
-  G.prizeRows=newRows;renderPrizeTbl();save();toast('Categories applied ✓','g');
+  const el=document.getElementById('manualTotal');
+  if(el)el.textContent='Total: ₹'+tot;
+}
+
+function applyManualEntry(){
+  G.prizeRows=BCATS.map(cat=>{
+    const el=document.getElementById('me_'+cat.id);
+    const existing=G.prizeRows.find(r=>r.catId===cat.id);
+    return {
+      catId:cat.id,catName:cat.name,slot:0,label:cat.name,
+      amount:el?parseInt(el.value)||0:0,
+      winner:existing?existing.winner:'',
+      editing:false
+    };
+  });
+  renderPrizeTbl();save();closeManualEntry();
+  toast('Prize amounts applied ✓','g');
+}
+
+function closeManualEntry(){
+  document.getElementById('manualEntryPanel').style.display='none';
+}
+
+function initCats(){
+  // V1: always 1 winner per category, 5 fixed categories
+  G.catSetup={};
+  BCATS.forEach(c=>{G.catSetup[c.id]=1;});
+}
+
+function renderCatCfg(){
+  // No longer used in V1 — category config is replaced by prize pool split UI
+}
+
+function applyCategories(){
+  // Build prize rows from fixed 5 cats with 1 winner each
+  G.prizeRows=BCATS.map(cat=>{
+    const ex=G.prizeRows?G.prizeRows.find(r=>r.catId===cat.id):null;
+    return {catId:cat.id,catName:cat.name,slot:0,label:cat.name,
+      amount:ex?ex.amount:0,winner:ex?ex.winner:'',editing:ex?ex.editing:false};
+  });
+  renderPrizeTbl();save();
 }
 function renderPrizeTbl(){
   const w=document.getElementById('prizeWrap');
@@ -1007,25 +1167,22 @@ function nextGameConfirm(){
   document.getElementById('gameLabel').textContent='Game '+G.gameNum;
   document.getElementById('settleWrap').innerHTML='<div class="empty"><i class="ti ti-coins"></i>Assign winners then calculate settlement</div>';
   document.getElementById('secHist').style.display='none';
+  // Reset prize split UI
+  document.getElementById('splitSuggestions').style.display='none';
+  document.getElementById('manualEntryPanel').style.display='none';
+  const poolEl=document.getElementById('totalPool');if(poolEl)poolEl.value='';
   initCats();renderPrizeTbl();renderPlayers();renderLB();save();
   toast('Game '+snap.gameNum+' saved! Now on Game '+G.gameNum+' ✓','g');
   document.getElementById('addBtnWrap').scrollIntoView({behavior:'smooth'});
 }
 
 function fullResetConfirm(){
-  if(!confirm('Reset the ENTIRE game including all history?\n\nThis cannot be undone.'))return;
-  G={gameNum:1,drawn:[],dmap:new Map(),players:[],price:100,catSetup:{},prizeRows:[],history:[],ok:G.ok};
-  buildGrid();refreshBig(null);refreshPills();
-  document.getElementById('drawCtr').textContent='0 / 90';
-  document.getElementById('gameLabel').textContent='Game 1';
-  document.getElementById('playersWrap').innerHTML='';
-  document.getElementById('addBtnWrap').style.display='none';
-  document.getElementById('pInfo').style.display='none';
-  document.getElementById('settleWrap').innerHTML='<div class="empty"><i class="ti ti-coins"></i>Assign winners then calculate settlement</div>';
-  document.getElementById('secHist').style.display='none';
-  initCats();G.prizeRows=[];renderPrizeTbl();renderLB();
-  if(G.ok)try{localStorage.removeItem('hm1');}catch(e){}
-  toast('Entire game has been reset','r');
+  if(!confirm('Reset the ENTIRE game including all history?\n\nThis cannot be undone.\n\nThe page will refresh automatically after reset.'))return;
+  // Clear all local storage game data
+  if(G.ok){try{localStorage.removeItem('hm1');}catch(e){}}
+  try{localStorage.removeItem('hm1ok');}catch(e){}
+  toast('Resetting… page will reload shortly.','r');
+  setTimeout(()=>location.reload(),900);
 }
 
 function renderLB(){renderCumLB();renderGamesLB();}
